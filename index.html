@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Lavado de Ropa a Mano</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulador de Lavado de Ropa a Mano</h1>
+        <canvas id="washingCanvas" width="400" height="300"></canvas>
+        <br>
+        <button id="addSoapBtn">Añadir Jabón</button>
+        <button id="washBtn">Lavar</button>
+        <button id="rinseBtn">Enjuagar</button>
+        <button id="wringBtn">Escurrir</button>
+        <button id="dryBtn" disabled>Tender</button>
+        <p id="statusText">Listo para comenzar</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('washingCanvas');
+        const ctx = canvas.getContext('2d');
+        const addSoapBtn = document.getElementById('addSoapBtn');
+        const washBtn = document.getElementById('washBtn');
+        const rinseBtn = document.getElementById('rinseBtn');
+        const wringBtn = document.getElementById('wringBtn');
+        const dryBtn = document.getElementById('dryBtn');
+        const statusText = document.getElementById('statusText');
+
+        let waterLevel = 200;
+        let soapLevel = 0;
+        let dirtLevel = 100;
+        let wetness = 100;
+        let isWashing = false;
+        let isRinsing = false;
+        let isWringing = false;
+        let isDrying = false;
+        let clothesPosition = {x: 200, y: 150};
+
+        function drawWashbasin() {
+            ctx.beginPath();
+            ctx.moveTo(50, 50);
+            ctx.lineTo(50, 250);
+            ctx.quadraticCurveTo(200, 300, 350, 250);
+            ctx.lineTo(350, 50);
+            ctx.closePath();
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+        }
+
+        function drawWater() {
+            ctx.fillStyle = `rgba(0, 100, 255, ${0.5 + soapLevel / 200})`;
+            ctx.beginPath();
+            ctx.moveTo(50, 250);
+            ctx.quadraticCurveTo(200, 300, 350, 250);
+            ctx.lineTo(350, 250 - waterLevel);
+            ctx.quadraticCurveTo(200, 300 - waterLevel, 50, 250 - waterLevel);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawClothes() {
+            ctx.fillStyle = `rgb(${155 + dirtLevel}, ${100 - dirtLevel}, ${100 - dirtLevel})`;
+            ctx.beginPath();
+            ctx.arc(clothesPosition.x, clothesPosition.y, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(clothesPosition.x - 50, clothesPosition.y);
+            ctx.lineTo(clothesPosition.x + 50, clothesPosition.y);
+            ctx.quadraticCurveTo(clothesPosition.x, clothesPosition.y + 50, clothesPosition.x - 50, clothesPosition.y);
+            ctx.fill();
+
+            if (isDrying) {
+                // Draw clothesline
+                ctx.beginPath();
+                ctx.moveTo(50, 50);
+                ctx.lineTo(350, 50);
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+
+                // Draw clothespin
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(clothesPosition.x - 5, clothesPosition.y - 70, 10, 20);
+            }
+        }
+
+        function drawBubbles() {
+            if (soapLevel > 0 && !isDrying) {
+                for (let i = 0; i < 20; i++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.random() * 300 + 50,
+                        Math.random() * waterLevel + (250 - waterLevel),
+                        Math.random() * 5 + 2,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fill();
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!isDrying) {
+                drawWashbasin();
+                drawWater();
+            }
+            
+            drawClothes();
+            drawBubbles();
+
+            if (isWashing) {
+                dirtLevel = Math.max(0, dirtLevel - 0.5);
+                soapLevel = Math.max(0, soapLevel - 0.1);
+            }
+
+            if (isRinsing) {
+                soapLevel = Math.max(0, soapLevel - 0.5);
+                waterLevel = Math.max(0, waterLevel - 0.5);
+            }
+
+            if (isWringing) {
+                waterLevel = Math.max(0, waterLevel - 1);
+                wetness = Math.max(0, wetness - 1);
+                if (wetness === 0) {
+                    isWringing = false;
+                    dryBtn.disabled = false;
+                    statusText.textContent = 'Ropa escurrida. Lista para tender.';
+                }
+            }
+
+            if (isDrying) {
+                wetness = Math.max(0, wetness - 0.1);
+                if (wetness === 0) {
+                    isDrying = false;
+                    statusText.textContent = 'La ropa está completamente seca. ¡Proceso completado!';
+                }
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        addSoapBtn.addEventListener('click', () => {
+            soapLevel = Math.min(100, soapLevel + 20);
+            statusText.textContent = 'Jabón añadido';
+        });
+
+        washBtn.addEventListener('click', () => {
+            if (soapLevel > 0 && waterLevel > 100) {
+                isWashing = !isWashing;
+                statusText.textContent = isWashing ? 'Lavando...' : 'Lavado pausado';
+            } else {
+                statusText.textContent = 'Necesitas agua y jabón para lavar';
+            }
+        });
+
+        rinseBtn.addEventListener('click', () => {
+            if (waterLevel > 50) {
+                isRinsing = !isRinsing;
+                statusText.textContent = isRinsing ? 'Enjuagando...' : 'Enjuague pausado';
+            } else {
+                statusText.textContent = 'No hay suficiente agua para enjuagar';
+            }
+        });
+
+        wringBtn.addEventListener('click', () => {
+            if (waterLevel > 0) {
+                isWringing = !isWringing;
+                statusText.textContent = isWringing ? 'Escurriendo...' : 'Escurrido pausado';
+            } else {
+                statusText.textContent = 'No hay agua para escurrir';
+            }
+        });
+
+        dryBtn.addEventListener('click', () => {
+            isDrying = true;
+            clothesPosition = {x: 200, y: 100};
+            statusText.textContent = 'Tendiendo la ropa para secar...';
+        });
+
+        draw();
+    </script>   
+</body>
+</html>
